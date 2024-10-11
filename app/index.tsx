@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import MapView, { Marker, Region } from 'react-native-maps';
+import MapView, { Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Link } from 'expo-router';
 
@@ -32,6 +32,8 @@ export default function Home() {
     <View style={styles.container}>
       <MapView
         style={styles.map}
+        showsUserLocation={true}
+        followsUserLocation={true}
         initialRegion={initialRegion}
         region={
           location
@@ -43,17 +45,7 @@ export default function Home() {
               }
             : initialRegion
         }
-      >
-        {location && (
-          <Marker
-            coordinate={{
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-            }}
-            title="You are here"
-          />
-        )}
-      </MapView>
+      />
       <Link href="/routes-list" style={styles.link}>
         View Routes
       </Link>
