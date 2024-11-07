@@ -35,7 +35,7 @@ const RoutesList = () => {
           </TouchableOpacity>
         )}
       />
-      <Button title="View Selected Routes" onPress={() => router.push('/')} />
+      <Button title="View Selected Routes" onPress={() => router.back()} />
     </View>
   );
 };
