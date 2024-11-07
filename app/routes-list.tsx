@@ -1,51 +1,41 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
-import axios from 'axios';
-import { useRouter } from 'expo-router'; // Use router for navigation
-
-const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+import React from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Button } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useRoutes } from './../RoutesContext';
 
 const RoutesList = () => {
-  const [routes, setRoutes] = useState([]);
-  const router = useRouter(); // Use router for navigation
+  const router = useRouter();
+  const { allRoutes, selectedRoutes, setSelectedRoutes } = useRoutes();
 
-  const apicall = async () => {
-    try {
-      const response = await axios.get(apiUrl + '/routes')
-      setRoutes([...response.data]);
-    } catch (error) {
-      console.log("Error: ", error);
-    }
-  }
+  console.log("All Routes:", allRoutes); // Log to check if routes are available
 
-  useEffect(() => {
-    apicall();
-  }, []);
-
-  // Function to handle route selection
-  const handleSelectRoute = (route) => {
-    // Navigate back to the map screen and pass the route details
-    router.push({
-      pathname: '/',
-      params: { routeDetails: JSON.stringify(route) }, // Pass route details as params
-    });
+  const handleRouteSelect = (route) => {
+    setSelectedRoutes((prevSelected) =>
+      prevSelected.some((r) => r.route.route_id === route.route.route_id)
+        ? prevSelected.filter((r) => r.route.route_id !== route.route.route_id)
+        : [...prevSelected, route]
+    );
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Bus Routes</Text>
       <FlatList
-        data={routes}
-        keyExtractor={(item) => item.route_id}
+        data={allRoutes}
+        keyExtractor={(item) => item.route.route_id}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={styles.routeContainer}
-            onPress={() => handleSelectRoute(item)} // Handle route selection
+            style={[
+              styles.routeContainer,
+              selectedRoutes.some((r) => r.route.route_id === item.route.route_id) && styles.selectedRoute,
+            ]}
+            onPress={() => handleRouteSelect(item)}
           >
-            <Text>{item.route_short_name}: {item.route_long_name}</Text>
+            <Text>{item.route.route_short_name}: {item.route.route_long_name}</Text>
           </TouchableOpacity>
         )}
       />
+      <Button title="View Selected Routes" onPress={() => router.back()} />
     </View>
   );
 };
@@ -64,6 +54,9 @@ const styles = StyleSheet.create({
     padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
+  },
+  selectedRoute: {
+    backgroundColor: '#D3E9FF',
   },
 });
 
