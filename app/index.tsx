@@ -59,15 +59,23 @@ export default function Home() {
                   latitude: parseFloat(stop.latitude),
                   longitude: parseFloat(stop.longitude),
                 }}
-                title={stop.name}
-                pinColor="black"
-              />
+              >
+                <View
+                  style={[
+                    styles.dot,
+                    {
+                      borderColor: 'white',
+                      backgroundColor: `#${routeItem.route.route_color || '000000'}`,
+                    },
+                  ]}
+                />
+              </Marker>
             ))}
           </React.Fragment>
         ))}
       </MapView>
       <View style={styles.buttonContainer}>
-        <Button title="Select Routes" onPress={() => router.push('/routes-list')} />
+        <Button title="Select Routes" onPress={() => router.push("/routes-list")} />
       </View>
     </View>
   );
@@ -89,4 +97,12 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 5,
   },
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
 });
+
+export default Home;
