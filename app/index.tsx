@@ -31,7 +31,7 @@ export default function Home() {
   useEffect(() => {
     // Fetch bus positions every 10 seconds
     fetchBusPositions();
-    const interval = setInterval(fetchBusPositions, 5000);
+    const interval = setInterval(fetchBusPositions, 2000);
     return () => clearInterval(interval);
   }, []);
 
