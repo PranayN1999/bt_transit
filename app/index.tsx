@@ -4,7 +4,8 @@ import MapView, { Region, Polyline, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useRoutes } from './../RoutesContext';
-import axios from 'axios';
+
+const apiUrl = process.env.EXPO_PUBLIC_WEB_SOCKET_URL;
 
 export default function Home() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
@@ -17,22 +18,40 @@ export default function Home() {
   });
   const [busPositions, setBusPositions] = useState([]);
   const router = useRouter();
+  const [ws, setWs] = useState<WebSocket | null>(null);
 
-  // Fetch real-time bus positions
-  const fetchBusPositions = async () => {
-    try {
-      const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/real-time-positions`);
-      setBusPositions(response.data.positions);
-    } catch (error) {
-      console.error("Error fetching bus positions:", error);
-    }
+  const initializeWebSocket = () => {
+    const socket = new WebSocket(`${apiUrl}/ws/bus-positions`);
+
+    socket.onopen = () => {
+      console.log("WebSocket connected");
+    };
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      setBusPositions(data.positions);
+    };
+
+    socket.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    socket.onclose = () => {
+      console.log("WebSocket disconnected");
+      setTimeout(() => initializeWebSocket(), 3000);
+    };
+
+    setWs(socket);
   };
 
   useEffect(() => {
-    // Fetch bus positions every 10 seconds
-    fetchBusPositions();
-    const interval = setInterval(fetchBusPositions, 2000);
-    return () => clearInterval(interval);
+    initializeWebSocket();
+
+    return () => {
+      if (ws) {
+        ws.close();
+      }
+    };
   }, []);
 
   useEffect(() => {
