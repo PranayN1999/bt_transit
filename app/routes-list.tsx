@@ -7,7 +7,7 @@ const RoutesList = () => {
   const router = useRouter();
   const { allRoutes, selectedRoutes, setSelectedRoutes } = useRoutes();
 
-  console.log("All Routes:", allRoutes); // Log to check if routes are available
+  // console.log("All Routes:", allRoutes);
 
   const handleRouteSelect = (route) => {
     setSelectedRoutes((prevSelected) =>

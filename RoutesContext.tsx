@@ -14,7 +14,7 @@ export const RoutesProvider = ({ children }) => {
     const fetchAllRoutes = async () => {
       try {
         const response = await axios.get(`${apiUrl}/all-routes/details`);
-        console.log("API Response:", response.data); // Log response data
+        // console.log("API Response:", response.data);
         setAllRoutes(response.data.routes);
       } catch (error) {
         console.error("Error fetching all routes:", error);
