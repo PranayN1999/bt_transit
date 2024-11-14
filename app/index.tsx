@@ -5,11 +5,13 @@ import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useRoutes } from './../RoutesContext';
 
+// Reference: Managing environment variables in React Native with Expo
+// Source: https://docs.expo.dev/guides/environment-variables/
 const apiUrl = process.env.EXPO_PUBLIC_WEB_SOCKET_URL;
 
 export default function Home() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
-  const { selectedRoutes } = useRoutes(); // Access selected routes from global state
+  const { selectedRoutes } = useRoutes();
   const [mapRegion, setMapRegion] = useState<Region>({
     latitude: 39.1653,
     longitude: -86.5264,
@@ -20,6 +22,8 @@ export default function Home() {
   const router = useRouter();
   const [ws, setWs] = useState<WebSocket | null>(null);
 
+  // Reference: Setting up a WebSocket connection in React Native
+  // Source: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
   const initializeWebSocket = () => {
     const socket = new WebSocket(`${apiUrl}/ws/bus-positions`);
 
@@ -44,6 +48,8 @@ export default function Home() {
     setWs(socket);
   };
 
+  // Reference: React useEffect hook for managing WebSocket lifecycle
+  // Source: https://react.dev/docs/hooks-effect
   useEffect(() => {
     initializeWebSocket();
 
@@ -54,6 +60,8 @@ export default function Home() {
     };
   }, []);
 
+  // Reference: Handling location permissions with Expo Location API
+  // Source: https://docs.expo.dev/versions/latest/sdk/location/
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -77,6 +85,8 @@ export default function Home() {
 
   return (
     <View style={styles.container}>
+      {/* Reference: Using MapView in React Native */}
+      {/* Source: https://github.com/react-native-maps/react-native-maps */}
       <MapView
         style={styles.map}
         showsUserLocation={true}
