@@ -117,8 +117,7 @@ export default function Home() {
                   latitude: parseFloat(stop.latitude),
                   longitude: parseFloat(stop.longitude),
                 }}
-                title={`Stop ${stop.sequence}`}
-                description={stop.stop_name || 'Bus Stop'}
+                title={stop.stop_name || `Bus Stop`}
               >
                 <View style={styles.stopMarker}>
                   <View
