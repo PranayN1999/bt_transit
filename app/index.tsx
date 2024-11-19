@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Button, Text } from 'react-native';
+import { View, StyleSheet, Button, Text, Modal, Image, TouchableOpacity } from 'react-native';
 import MapView, { Region, Polyline, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useRoutes } from './../RoutesContext';
 
-// Reference: Managing environment variables in React Native with Expo
-// Source: https://docs.expo.dev/guides/environment-variables/
+const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY; // Replace with your Google API Key
 const apiUrl = process.env.EXPO_PUBLIC_WEB_SOCKET_URL;
 
 export default function Home() {
@@ -22,11 +21,16 @@ export default function Home() {
   const router = useRouter();
   const [ws, setWs] = useState<WebSocket | null>(null);
 
+  // State for Modal
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedStop, setSelectedStop] = useState(null);
+  const [stopPhotoUrl, setStopPhotoUrl] = useState('');
+
   const initializeWebSocket = () => {
     const socket = new WebSocket(`${apiUrl}/ws/bus-positions`);
 
     socket.onopen = () => {
-      console.log("WebSocket connected");
+      console.log('WebSocket connected');
     };
 
     socket.onmessage = (event) => {
@@ -35,11 +39,11 @@ export default function Home() {
     };
 
     socket.onerror = (error) => {
-      console.error("WebSocket error:", error);
+      console.error('WebSocket error:', error);
     };
 
     socket.onclose = () => {
-      console.log("WebSocket disconnected");
+      console.log('WebSocket disconnected');
       setTimeout(() => initializeWebSocket(), 3000);
     };
 
@@ -76,6 +80,54 @@ export default function Home() {
     selectedRoutes.some((route) => route.route.route_id === bus.route_id)
   );
 
+  const handleMarkerPress = async (stop) => {
+    console.log('Marker clicked:', stop.stop_name);
+    const lat = stop.latitude;
+    const lng = stop.longitude;
+
+    try {
+      const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=500&type=transit_station&key=${GOOGLE_API_KEY}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      console.log('API response:', data);
+
+      if (data.results && data.results.length > 0) {
+        const place = data.results[0];
+        const photoReference = place.photos?.[0]?.photo_reference;
+
+        if (photoReference) {
+          const photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoReference}&key=${GOOGLE_API_KEY}`;
+          setStopPhotoUrl(photoUrl);
+          // } else if (place.icon) {
+          //   setStopPhotoUrl(place.icon); // Fallback to icon
+        } else {
+          setStopPhotoUrl(null); // No photo or icon available
+        }
+
+        setSelectedStop({
+          name: stop.stop_name || place.name || 'Bus Stop',
+          vicinity: place.vicinity || 'No location details available',
+        });
+      } else {
+        console.log('No results found for this stop.');
+        setStopPhotoUrl(null);
+        setSelectedStop({
+          name: stop.stop_name || 'Bus Stop',
+          vicinity: 'No additional information available',
+        });
+      }
+      setModalVisible(true);
+    } catch (error) {
+      console.error('Error fetching stop photo:', error);
+      setStopPhotoUrl(null);
+      setSelectedStop({
+        name: stop.stop_name || 'Bus Stop',
+        vicinity: 'No additional information available',
+      });
+      setModalVisible(true);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <MapView
@@ -87,7 +139,6 @@ export default function Home() {
       >
         {selectedRoutes.map((routeItem) => (
           <React.Fragment key={routeItem.route.route_id}>
-            {/* Group shapes by shape_id */}
             {Object.entries(
               routeItem.shape.reduce((acc, point) => {
                 const { shape_id } = point;
@@ -99,7 +150,7 @@ export default function Home() {
               <Polyline
                 key={`shape-${shapeId}`}
                 coordinates={points
-                  .sort((a, b) => a.sequence - b.sequence) // Ensure points are sorted by sequence
+                  .sort((a, b) => a.sequence - b.sequence)
                   .map(({ latitude, longitude }) => ({
                     latitude: parseFloat(latitude),
                     longitude: parseFloat(longitude),
@@ -109,7 +160,6 @@ export default function Home() {
               />
             ))}
 
-            {/* Render stops */}
             {routeItem.stops.map((stop, index) => (
               <Marker
                 key={`stop-${routeItem.route.route_id}-${index}`}
@@ -118,6 +168,7 @@ export default function Home() {
                   longitude: parseFloat(stop.longitude),
                 }}
                 title={stop.stop_name || `Bus Stop`}
+                onPress={() => handleMarkerPress(stop)}
               >
                 <View style={styles.stopMarker}>
                   <View
@@ -134,7 +185,6 @@ export default function Home() {
           </React.Fragment>
         ))}
 
-        {/* Display real-time bus positions */}
         {filteredBusPositions.map((bus, index) => (
           <Marker
             key={`bus-${bus.vehicle_id}-${index}`}
@@ -161,6 +211,32 @@ export default function Home() {
       <View style={styles.buttonContainer}>
         <Button title="Select Routes" onPress={() => router.push('/routes-list')} />
       </View>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{selectedStop?.name}</Text>
+            <Text style={styles.modalSubtitle}>{selectedStop?.vicinity}</Text>
+            {stopPhotoUrl ? (
+              <Image source={{ uri: stopPhotoUrl }} style={styles.stopImage} />
+            ) : (
+              <Text>No photo available for this stop.</Text>
+            )}
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -209,6 +285,57 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Dimmed background
+  },
+  modalContent: {
+    width: '90%', // Make the modal responsive
+    backgroundColor: '#fff', // White background for modal content
+    borderRadius: 15, // Rounded corners
+    padding: 20, // Padding inside the modal
+    alignItems: 'center', // Center the content
+    shadowColor: '#000', // Shadow for a popup effect
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5, // Elevation for Android
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333', // Darker text color for better contrast
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    color: '#555', // Subtle color for subtitle
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  stopImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 10,
+    marginBottom: 15,
+  },
+  closeButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 
