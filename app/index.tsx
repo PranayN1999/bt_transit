@@ -82,43 +82,21 @@ export default function Home() {
 
   const handleMarkerPress = async (stop) => {
     console.log('Marker clicked:', stop.stop_name);
-    const lat = stop.latitude;
-    const lng = stop.longitude;
 
     try {
-      const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=500&type=transit_station&key=${GOOGLE_API_KEY}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      console.log('API response:', data);
+      const lat = stop.latitude;
+      const lng = stop.longitude;
+      const streetViewUrl = `https://maps.googleapis.com/maps/api/streetview?size=600x300&location=${lat},${lng}&key=${GOOGLE_API_KEY}`;
+      setStopPhotoUrl(streetViewUrl);
 
-      if (data.results && data.results.length > 0) {
-        const place = data.results[0];
-        const photoReference = place.photos?.[0]?.photo_reference;
+      setSelectedStop({
+        name: stop.stop_name || 'Bus Stop',
+        vicinity: `Lat: ${lat}, Lng: ${lng}`,
+      });
 
-        if (photoReference) {
-          const photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photoReference}&key=${GOOGLE_API_KEY}`;
-          setStopPhotoUrl(photoUrl);
-          // } else if (place.icon) {
-          //   setStopPhotoUrl(place.icon); // Fallback to icon
-        } else {
-          setStopPhotoUrl(null); // No photo or icon available
-        }
-
-        setSelectedStop({
-          name: stop.stop_name || place.name || 'Bus Stop',
-          vicinity: place.vicinity || 'No location details available',
-        });
-      } else {
-        console.log('No results found for this stop.');
-        setStopPhotoUrl(null);
-        setSelectedStop({
-          name: stop.stop_name || 'Bus Stop',
-          vicinity: 'No additional information available',
-        });
-      }
       setModalVisible(true);
     } catch (error) {
-      console.error('Error fetching stop photo:', error);
+      console.error('Error fetching Street View image:', error);
       setStopPhotoUrl(null);
       setSelectedStop({
         name: stop.stop_name || 'Bus Stop',
@@ -225,7 +203,7 @@ export default function Home() {
             {stopPhotoUrl ? (
               <Image source={{ uri: stopPhotoUrl }} style={styles.stopImage} />
             ) : (
-              <Text>No photo available for this stop.</Text>
+              <Text>No street view available for this stop.</Text>
             )}
             <TouchableOpacity
               style={styles.closeButton}
@@ -236,7 +214,6 @@ export default function Home() {
           </View>
         </View>
       </Modal>
-
     </View>
   );
 }
@@ -290,33 +267,33 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Dimmed background
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   modalContent: {
-    width: '90%', // Make the modal responsive
-    backgroundColor: '#fff', // White background for modal content
-    borderRadius: 15, // Rounded corners
-    padding: 20, // Padding inside the modal
-    alignItems: 'center', // Center the content
-    shadowColor: '#000', // Shadow for a popup effect
+    width: '90%',
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5, // Elevation for Android
+    elevation: 5,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 10,
-    color: '#333', // Darker text color for better contrast
+    color: '#333',
     textAlign: 'center',
   },
   modalSubtitle: {
     fontSize: 16,
-    color: '#555', // Subtle color for subtitle
+    color: '#555',
     marginBottom: 15,
     textAlign: 'center',
   },
