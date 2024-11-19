@@ -22,8 +22,6 @@ export default function Home() {
   const router = useRouter();
   const [ws, setWs] = useState<WebSocket | null>(null);
 
-  // Reference: Setting up a WebSocket connection in React Native
-  // Source: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
   const initializeWebSocket = () => {
     const socket = new WebSocket(`${apiUrl}/ws/bus-positions`);
 
@@ -48,8 +46,6 @@ export default function Home() {
     setWs(socket);
   };
 
-  // Reference: React useEffect hook for managing WebSocket lifecycle
-  // Source: https://react.dev/docs/hooks-effect
   useEffect(() => {
     initializeWebSocket();
 
@@ -60,8 +56,6 @@ export default function Home() {
     };
   }, []);
 
-  // Reference: Handling location permissions with Expo Location API
-  // Source: https://docs.expo.dev/versions/latest/sdk/location/
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -78,15 +72,12 @@ export default function Home() {
     })();
   }, []);
 
-  // Filter bus positions based on selected routes
   const filteredBusPositions = busPositions.filter((bus) =>
     selectedRoutes.some((route) => route.route.route_id === bus.route_id)
   );
 
   return (
     <View style={styles.container}>
-      {/* Reference: Using MapView in React Native */}
-      {/* Source: https://github.com/react-native-maps/react-native-maps */}
       <MapView
         style={styles.map}
         showsUserLocation={true}
@@ -94,24 +85,40 @@ export default function Home() {
         initialRegion={mapRegion}
         region={location ? mapRegion : undefined}
       >
-        {/* Draw each selected route's shape and stops */}
         {selectedRoutes.map((routeItem) => (
           <React.Fragment key={routeItem.route.route_id}>
-            <Polyline
-              coordinates={routeItem.shape.map(({ latitude, longitude }) => ({
-                latitude: parseFloat(latitude),
-                longitude: parseFloat(longitude),
-              }))}
-              strokeColor={`#${routeItem.route.route_color || 'FF0000'}`}
-              strokeWidth={3}
-            />
+            {/* Group shapes by shape_id */}
+            {Object.entries(
+              routeItem.shape.reduce((acc, point) => {
+                const { shape_id } = point;
+                if (!acc[shape_id]) acc[shape_id] = [];
+                acc[shape_id].push(point);
+                return acc;
+              }, {})
+            ).map(([shapeId, points]) => (
+              <Polyline
+                key={`shape-${shapeId}`}
+                coordinates={points
+                  .sort((a, b) => a.sequence - b.sequence) // Ensure points are sorted by sequence
+                  .map(({ latitude, longitude }) => ({
+                    latitude: parseFloat(latitude),
+                    longitude: parseFloat(longitude),
+                  }))}
+                strokeColor={`#${routeItem.route.route_color || 'FF0000'}`}
+                strokeWidth={3}
+              />
+            ))}
+
+            {/* Render stops */}
             {routeItem.stops.map((stop, index) => (
               <Marker
-                key={`${routeItem.route.route_id}-${index}`}
+                key={`stop-${routeItem.route.route_id}-${index}`}
                 coordinate={{
                   latitude: parseFloat(stop.latitude),
                   longitude: parseFloat(stop.longitude),
                 }}
+                title={`Stop ${stop.sequence}`}
+                description={stop.stop_name || 'Bus Stop'}
               >
                 <View style={styles.stopMarker}>
                   <View
@@ -128,7 +135,7 @@ export default function Home() {
           </React.Fragment>
         ))}
 
-        {/* Display real-time bus positions for selected routes */}
+        {/* Display real-time bus positions */}
         {filteredBusPositions.map((bus, index) => (
           <Marker
             key={`bus-${bus.vehicle_id}-${index}`}
@@ -175,6 +182,20 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 5,
   },
+  busMarker: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 40,
+    height: 30,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: 'white',
+  },
+  busText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
   stopMarker: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -189,20 +210,6 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-  },
-  busMarker: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
-    height: 30,
-    borderRadius: 5,
-    borderWidth: 2,
-    borderColor: 'white',
-  },
-  busText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 14,
   },
 });
 
