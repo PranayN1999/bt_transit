@@ -7,7 +7,6 @@ import { MaterialIcons } from '@expo/vector-icons'; // Importing MaterialIcons f
 const RoutesList = () => {
   const router = useRouter();
   const { allRoutes, selectedRoutes, setSelectedRoutes } = useRoutes();
-  const [showAll, setShowAll] = useState(false);
 
   // Function to toggle route selection
   const handleRouteSelect = (route) => {
@@ -23,18 +22,25 @@ const RoutesList = () => {
     if (selectedRoutes.length === 0) {
       setSelectedRoutes(allRoutes);
     } else {
-      setSelectedRoutes([]); 
+      setSelectedRoutes([]);
     }
+  };
+
+  // Function to navigate to the Bus Schedule screen
+  const handleViewSchedule = (route) => {
+    router.push({
+      pathname: '/bus-schedule',
+      params: { route_id: route.route.route_id, route_name: route.route.route_long_name },
+    });
   };
 
   return (
     <View style={styles.container}>
       {/* Show All / Hide All Button */}
-      <TouchableOpacity
-        style={styles.toggleButton}
-        onPress={toggleAllRoutes}
-      >
-        <Text style={styles.toggleButtonText}>{selectedRoutes.length === 0 ? 'Show All' : 'Hide All'}</Text>
+      <TouchableOpacity style={styles.toggleButton} onPress={toggleAllRoutes}>
+        <Text style={styles.toggleButtonText}>
+          {selectedRoutes.length === 0 ? 'Show All' : 'Hide All'}
+        </Text>
       </TouchableOpacity>
 
       <Text style={styles.title}>Bus Routes</Text>
@@ -44,19 +50,29 @@ const RoutesList = () => {
         renderItem={({ item }) => {
           const isSelected = selectedRoutes.some((r) => r.route.route_id === item.route.route_id);
           return (
-            <TouchableOpacity
-              style={[styles.routeContainer, isSelected && styles.selectedRoute]}
-              onPress={() => handleRouteSelect(item)}
-            >
-              <View style={styles.checkboxContainer}>
-                <View style={[styles.checkbox, isSelected && styles.checkedCheckbox]}>
-                  {isSelected && (
-                    <MaterialIcons name="check" size={14} color="#fff" /> // Using MaterialIcons for the check icon
-                  )}
+            <View style={styles.routeRow}>
+              {/* Checkbox and Route Name */}
+              <TouchableOpacity
+                style={[styles.routeContainer, isSelected && styles.selectedRoute]}
+                onPress={() => handleRouteSelect(item)}
+              >
+                <View style={styles.checkboxContainer}>
+                  <View style={[styles.checkbox, isSelected && styles.checkedCheckbox]}>
+                    {isSelected && (
+                      <MaterialIcons name="check" size={14} color="#fff" /> // Using MaterialIcons for the check icon
+                    )}
+                  </View>
+                  <Text style={styles.routeText}>
+                    {item.route.route_short_name}: {item.route.route_long_name}
+                  </Text>
                 </View>
-                <Text>{item.route.route_short_name}: {item.route.route_long_name}</Text>
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+
+              {/* Schedule Icon */}
+              <TouchableOpacity onPress={() => handleViewSchedule(item)} style={styles.scheduleIcon}>
+                <MaterialIcons name="schedule" size={24} color="#007AFF" />
+              </TouchableOpacity>
+            </View>
           );
         }}
       />
@@ -86,12 +102,18 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
-  routeContainer: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+  routeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  routeContainer: {
+    flex: 1,
+    marginRight: 10, // Add spacing between text and icon
   },
   checkboxContainer: {
     flexDirection: 'row',
@@ -110,6 +132,12 @@ const styles = StyleSheet.create({
   checkedCheckbox: {
     backgroundColor: '#007AFF',
     borderColor: '#007AFF',
+  },
+  routeText: {
+    fontSize: 16, // Adjust text size for better readability
+  },
+  scheduleIcon: {
+    padding: 5, // Add some padding around the icon for better clickability
   },
   selectedRoute: {
     backgroundColor: '#D3E9FF',
