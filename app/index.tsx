@@ -4,11 +4,14 @@ import MapView, { Region, Polyline, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useRoutes } from './../RoutesContext';
-import axios from 'axios';
+
+// Reference: Managing environment variables in React Native with Expo
+// Source: https://docs.expo.dev/guides/environment-variables/
+const apiUrl = process.env.EXPO_PUBLIC_WEB_SOCKET_URL;
 
 export default function Home() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
-  const { selectedRoutes } = useRoutes(); // Access selected routes from global state
+  const { selectedRoutes } = useRoutes();
   const [mapRegion, setMapRegion] = useState<Region>({
     latitude: 39.1653,
     longitude: -86.5264,
@@ -17,22 +20,40 @@ export default function Home() {
   });
   const [busPositions, setBusPositions] = useState([]);
   const router = useRouter();
+  const [ws, setWs] = useState<WebSocket | null>(null);
 
-  // Fetch real-time bus positions
-  const fetchBusPositions = async () => {
-    try {
-      const response = await axios.get(`${process.env.EXPO_PUBLIC_API_URL}/real-time-positions`);
-      setBusPositions(response.data.positions);
-    } catch (error) {
-      console.error("Error fetching bus positions:", error);
-    }
+  const initializeWebSocket = () => {
+    const socket = new WebSocket(`${apiUrl}/ws/bus-positions`);
+
+    socket.onopen = () => {
+      console.log("WebSocket connected");
+    };
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      setBusPositions(data.positions);
+    };
+
+    socket.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    socket.onclose = () => {
+      console.log("WebSocket disconnected");
+      setTimeout(() => initializeWebSocket(), 3000);
+    };
+
+    setWs(socket);
   };
 
   useEffect(() => {
-    // Fetch bus positions every 10 seconds
-    fetchBusPositions();
-    const interval = setInterval(fetchBusPositions, 2000);
-    return () => clearInterval(interval);
+    initializeWebSocket();
+
+    return () => {
+      if (ws) {
+        ws.close();
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -51,7 +72,6 @@ export default function Home() {
     })();
   }, []);
 
-  // Filter bus positions based on selected routes
   const filteredBusPositions = busPositions.filter((bus) =>
     selectedRoutes.some((route) => route.route.route_id === bus.route_id)
   );
@@ -65,24 +85,39 @@ export default function Home() {
         initialRegion={mapRegion}
         region={location ? mapRegion : undefined}
       >
-        {/* Draw each selected route's shape and stops */}
         {selectedRoutes.map((routeItem) => (
           <React.Fragment key={routeItem.route.route_id}>
-            <Polyline
-              coordinates={routeItem.shape.map(({ latitude, longitude }) => ({
-                latitude: parseFloat(latitude),
-                longitude: parseFloat(longitude),
-              }))}
-              strokeColor={`#${routeItem.route.route_color || 'FF0000'}`}
-              strokeWidth={3}
-            />
+            {/* Group shapes by shape_id */}
+            {Object.entries(
+              routeItem.shape.reduce((acc, point) => {
+                const { shape_id } = point;
+                if (!acc[shape_id]) acc[shape_id] = [];
+                acc[shape_id].push(point);
+                return acc;
+              }, {})
+            ).map(([shapeId, points]) => (
+              <Polyline
+                key={`shape-${shapeId}`}
+                coordinates={points
+                  .sort((a, b) => a.sequence - b.sequence) // Ensure points are sorted by sequence
+                  .map(({ latitude, longitude }) => ({
+                    latitude: parseFloat(latitude),
+                    longitude: parseFloat(longitude),
+                  }))}
+                strokeColor={`#${routeItem.route.route_color || 'FF0000'}`}
+                strokeWidth={3}
+              />
+            ))}
+
+            {/* Render stops */}
             {routeItem.stops.map((stop, index) => (
               <Marker
-                key={`${routeItem.route.route_id}-${index}`}
+                key={`stop-${routeItem.route.route_id}-${index}`}
                 coordinate={{
                   latitude: parseFloat(stop.latitude),
                   longitude: parseFloat(stop.longitude),
                 }}
+                title={stop.stop_name || `Bus Stop`}
               >
                 <View style={styles.stopMarker}>
                   <View
@@ -99,7 +134,7 @@ export default function Home() {
           </React.Fragment>
         ))}
 
-        {/* Display real-time bus positions for selected routes */}
+        {/* Display real-time bus positions */}
         {filteredBusPositions.map((bus, index) => (
           <Marker
             key={`bus-${bus.vehicle_id}-${index}`}
@@ -146,6 +181,20 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 5,
   },
+  busMarker: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 40,
+    height: 30,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: 'white',
+  },
+  busText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
   stopMarker: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -160,20 +209,6 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-  },
-  busMarker: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 40,
-    height: 30,
-    borderRadius: 5,
-    borderWidth: 2,
-    borderColor: 'white',
-  },
-  busText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 14,
   },
 });
 
