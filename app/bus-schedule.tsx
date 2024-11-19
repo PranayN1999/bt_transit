@@ -1,7 +1,5 @@
-// bus-schedule.tsx
-
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 
 const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://your-backend-url'; // Replace with your backend URL
@@ -9,6 +7,8 @@ const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://your-backend-url'; // 
 const BusSchedule = () => {
   const { route_id, route_name } = useLocalSearchParams();
   const [schedule, setSchedule] = useState([]);
+  const [filteredSchedule, setFilteredSchedule] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -26,9 +26,9 @@ const BusSchedule = () => {
         if (data.schedule.length === 0) {
           setError(data.message || 'No schedule available for this route today.');
         } else {
-          // Process data to group times by stop
           const processedData = processScheduleData(data.schedule);
           setSchedule(processedData);
+          setFilteredSchedule(processedData); // Initially show all stops
         }
         setLoading(false);
       } catch (error) {
@@ -59,9 +59,7 @@ const BusSchedule = () => {
       });
     });
 
-    // Convert stopsMap to array and sort times for each stop
     const stops = Object.values(stopsMap).map((stop) => {
-      // Remove duplicate times and sort them
       stop.times = Array.from(new Set(stop.times)).sort((a, b) => {
         const dateA = parseTime(a);
         const dateB = parseTime(b);
@@ -70,7 +68,6 @@ const BusSchedule = () => {
       return stop;
     });
 
-    // Optionally, sort stops by stop sequence or name
     stops.sort((a, b) => a.stop_name.localeCompare(b.stop_name));
 
     return stops;
@@ -96,6 +93,26 @@ const BusSchedule = () => {
     return new Date(0, 0, 0, hours, minutes);
   };
 
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+  
+    // Normalize the query by replacing "&" with "and" (case-insensitive)
+    const normalizedQuery = query.toLowerCase().replace(/&/g, 'and').replace(/@/g, 'at');
+  
+    if (!normalizedQuery.trim()) {
+      setFilteredSchedule(schedule); // Show all stops if the search bar is empty
+    } else {
+      const filteredData = schedule.filter((stop) => {
+        // Normalize stop names by replacing "&" with "and" (case-insensitive)
+        const normalizedStopName = stop.stop_name.toLowerCase().replace(/&/g, 'and').replace(/@/g, 'at');
+        return normalizedStopName.includes(normalizedQuery);
+      });
+  
+      setFilteredSchedule(filteredData);
+    }
+  };
+  
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -117,6 +134,13 @@ const BusSchedule = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Schedule for {route_name}</Text>
+      {/* Search Bar */}
+      <TextInput
+        style={styles.searchBar}
+        placeholder="Search for a stop..."
+        value={searchQuery}
+        onChangeText={handleSearch}
+      />
       <ScrollView>
         <View style={styles.table}>
           {/* Header Row */}
@@ -126,7 +150,7 @@ const BusSchedule = () => {
           </View>
 
           {/* Data Rows */}
-          {schedule.map((stop, index) => (
+          {filteredSchedule.map((stop, index) => (
             <View
               key={stop.stop_id}
               style={[
@@ -134,9 +158,7 @@ const BusSchedule = () => {
                 index % 2 === 0 ? styles.rowAlternate : styles.rowRegular,
               ]}
             >
-              {/* Stop Name */}
               <Text style={[styles.cell, styles.stopNameCell]}>{stop.stop_name}</Text>
-              {/* Times */}
               <View style={[styles.cell, styles.timesCell]}>
                 <Text>{stop.times.join(', ')}</Text>
               </View>
@@ -163,6 +185,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
     textAlign: 'center',
+  },
+  searchBar: {
+    height: 40,
+    borderColor: '#ddd',
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 10,
   },
   tableRow: {
     flexDirection: 'row',
