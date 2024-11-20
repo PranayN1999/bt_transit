@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Button, Text, Modal, Image, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Button } from 'react-native';
 import MapView, { Region, Polyline, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useRoutes } from './../RoutesContext';
-import BUS_ICON from './../assets/images/bus.png';
+import StopInfoModal from './../components/StopInfoModal';
+import BusMarker from './../components/BusMarker';
 
 const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 const apiUrl = process.env.EXPO_PUBLIC_WEB_SOCKET_URL;
@@ -19,13 +20,10 @@ export default function Home() {
     longitudeDelta: 0.05,
   });
   const [busPositions, setBusPositions] = useState([]);
-  const router = useRouter();
-  const [ws, setWs] = useState<WebSocket | null>(null);
-
-  // State for Modal
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedStop, setSelectedStop] = useState(null);
   const [stopPhotoUrl, setStopPhotoUrl] = useState('');
+  const router = useRouter();
 
   const initializeWebSocket = () => {
     const socket = new WebSocket(`${apiUrl}/ws/bus-positions`);
@@ -47,8 +45,6 @@ export default function Home() {
       console.log('WebSocket disconnected');
       setTimeout(() => initializeWebSocket(), 3000);
     };
-
-    setWs(socket);
   };
 
   useEffect(() => {
@@ -82,8 +78,6 @@ export default function Home() {
   );
 
   const handleMarkerPress = async (stop) => {
-    console.log('Marker clicked:', stop.stop_name);
-
     try {
       const lat = stop.latitude;
       const lng = stop.longitude;
@@ -164,82 +158,20 @@ export default function Home() {
           </React.Fragment>
         ))}
 
-        {filteredBusPositions.map((bus, index) => {
-          const route = selectedRoutes.find((routeItem) =>
-            routeItem.route.route_id === bus.route_id
-          );
-          const routeColor = route ? `#${route.route.route_color || '000000'}` : 'black';
-
-          return (
-            <Marker
-              key={`bus-${bus.vehicle_id}-${index}`}
-              coordinate={{
-                latitude: bus.latitude,
-                longitude: bus.longitude,
-              }}
-              anchor={{ x: 0.5, y: 0.65 }}
-              title={`Bus ${bus.vehicle_id}`}
-              description={`Route: ${bus.route_short_name}`}
-            >
-              <View style={styles.busContainer}>
-                <View
-                  style={[
-                    styles.busLabelWithArrow,
-                    { borderColor: routeColor },
-                  ]}
-                >
-                  <Text style={[styles.busLabelText]}>
-                    {bus.route_short_name}
-                  </Text>
-                  <View
-                    style={[
-                      styles.arrowDown,
-                      { borderTopColor: routeColor },
-                    ]}
-                  />
-                </View>
-                <Image
-                  source={BUS_ICON}
-                  style={[
-                    styles.busIcon,
-                    { transform: [{ rotate: `${bus.bearing + 180}deg` }] },
-                  ]}
-                />
-              </View>
-            </Marker>
-          );
-        })}
-
-
+        {filteredBusPositions.map((bus, index) => (
+          <BusMarker key={`bus-${bus.vehicle_id}-${index}`} bus={bus} />
+        ))}
       </MapView>
       <View style={styles.buttonContainer}>
         <Button title="Select Routes" onPress={() => router.push('/routes-list')} />
       </View>
 
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{selectedStop?.name}</Text>
-            <Text style={styles.modalSubtitle}>{selectedStop?.vicinity}</Text>
-            {stopPhotoUrl ? (
-              <Image source={{ uri: stopPhotoUrl }} style={styles.stopImage} />
-            ) : (
-              <Text>No street view available for this stop.</Text>
-            )}
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <StopInfoModal
+        modalVisible={modalVisible}
+        stopPhotoUrl={stopPhotoUrl}
+        selectedStop={selectedStop}
+        setModalVisible={setModalVisible}
+      />
     </View>
   );
 }
@@ -260,48 +192,6 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 5,
   },
-  busContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  busLabelWithArrow: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'white',
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    height: 46,
-    width: 46,
-    borderRadius: 23,
-    borderWidth: 4,
-    borderColor: 'black',
-    marginBottom: -25,
-  },
-
-  busLabelText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: 'black',
-  },
-
-  arrowDown: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 8,
-    borderRightWidth: 8,
-    borderTopWidth: 8,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: 'black',
-  },
-
-  busIcon: {
-    width: 60,
-    height: 60,
-    resizeMode: 'contain',
-  },
-
   stopMarker: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -316,57 +206,6 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-  },
-  modalContent: {
-    width: '90%',
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
-    textAlign: 'center',
-  },
-  modalSubtitle: {
-    fontSize: 16,
-    color: '#555',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  stopImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 10,
-    marginBottom: 15,
-  },
-  closeButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  closeButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
   },
 });
 
