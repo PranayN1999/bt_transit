@@ -141,6 +141,8 @@ src/
 3. **Push Notifications**:
    - Notify users about bus arrival times or delays.
 
+Icon used for bus - <a href="https://www.flaticon.com/free-icons/yellow" title="yellow icons">Yellow icons created by Ylivdesign - Flaticon</a>
+
 ![search bus stop in bus schedule](https://github.com/user-attachments/assets/646a80d6-38ad-4e5e-88d4-6c8639e81581)
 ![select-routes](https://github.com/user-attachments/assets/9ff96e0d-95a8-45e9-b059-07f97d829193)
 ![bus live location](https://github.com/user-attachments/assets/4ec7c394-c02c-4b24-8e83-d865d9b2f8e4)
