@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { RoutesProvider } from '@/RoutesContext';
 
+// Reference: https://docs.expo.dev/router/advanced/stack/
 export default function RootLayout() {
   return (
     <RoutesProvider>
