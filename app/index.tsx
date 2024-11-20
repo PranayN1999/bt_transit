@@ -277,7 +277,6 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     borderColor: 'black',
     marginBottom: -25,
-    zIndex: 2,
   },
 
   busLabelText: {
