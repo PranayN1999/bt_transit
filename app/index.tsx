@@ -1,95 +1,99 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Button, Text, Modal, Image, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Button } from 'react-native';
 import MapView, { Region, Polyline, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useRoutes } from './../RoutesContext';
-import BUS_ICON from './../assets/images/bus.png';
+import StopInfoModal from './../components/StopInfoModal'; // Modal for displaying bus stop details
+import BusMarker from './../components/BusMarker'; // Component for displaying bus markers
 
 const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 const apiUrl = process.env.EXPO_PUBLIC_WEB_SOCKET_URL;
 
 export default function Home() {
+  // State for user's current location
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
-  const { selectedRoutes } = useRoutes();
+
+  // State for the map region
   const [mapRegion, setMapRegion] = useState<Region>({
-    latitude: 39.1653,
-    longitude: -86.5264,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
+    latitude: 39.1653, // Default latitude
+    longitude: -86.5264, // Default longitude
+    latitudeDelta: 0.05, // Default zoom level for latitude
+    longitudeDelta: 0.05, // Default zoom level for longitude
   });
-  const [busPositions, setBusPositions] = useState([]);
-  const router = useRouter();
-  const [ws, setWs] = useState<WebSocket | null>(null);
 
-  // State for Modal
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedStop, setSelectedStop] = useState(null);
-  const [stopPhotoUrl, setStopPhotoUrl] = useState('');
+  const { selectedRoutes } = useRoutes(); // Context for selected routes
+  const [busPositions, setBusPositions] = useState([]); // State to hold real-time bus positions
+  const [modalVisible, setModalVisible] = useState(false); // State to control modal visibility
+  const [selectedStop, setSelectedStop] = useState(null); // State for selected bus stop details
+  const [stopPhotoUrl, setStopPhotoUrl] = useState(''); // URL for the Google Maps street view image
+  const router = useRouter(); // Router for navigation
 
+  // Function to initialize the WebSocket connection
   const initializeWebSocket = () => {
     const socket = new WebSocket(`${apiUrl}/ws/bus-positions`);
 
     socket.onopen = () => {
-      console.log('WebSocket connected');
+      console.log('WebSocket connected'); // Log when WebSocket connects
     };
 
     socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      setBusPositions(data.positions);
+      const data = JSON.parse(event.data); // Parse incoming data
+      setBusPositions(data.positions); // Update bus positions state
     };
 
     socket.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error('WebSocket error:', error); // Handle WebSocket errors
     };
 
     socket.onclose = () => {
-      console.log('WebSocket disconnected');
-      setTimeout(() => initializeWebSocket(), 3000);
+      console.log('WebSocket disconnected'); // Log when WebSocket disconnects
+      setTimeout(() => initializeWebSocket(), 3000); // Retry connection after 3 seconds
     };
-
-    setWs(socket);
   };
 
+  // Initialize WebSocket when the component mounts
   useEffect(() => {
     initializeWebSocket();
 
     return () => {
       if (ws) {
-        ws.close();
+        ws.close(); // Close WebSocket when the component unmounts
       }
     };
   }, []);
 
+  // Request user's location permissions and fetch current location
   useEffect(() => {
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
+      const { status } = await Location.requestForegroundPermissionsAsync(); // Request permissions
+      if (status !== 'granted') return; // Exit if permission is denied
 
-      const location = await Location.getCurrentPositionAsync({});
-      setLocation(location);
+      const location = await Location.getCurrentPositionAsync({}); // Fetch current location
+      setLocation(location); // Update location state
       setMapRegion({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
         latitudeDelta: 0.05,
         longitudeDelta: 0.05,
-      });
+      }); // Update map region to focus on user's location
     })();
   }, []);
 
+  // Filter bus positions based on selected routes
   const filteredBusPositions = busPositions.filter((bus) =>
     selectedRoutes.some((route) => route.route.route_id === bus.route_id)
   );
 
+  // Function to handle marker press for bus stops
   const handleMarkerPress = async (stop) => {
-    console.log('Marker clicked:', stop.stop_name);
-
     try {
-      const lat = stop.latitude;
-      const lng = stop.longitude;
-      const streetViewUrl = `https://maps.googleapis.com/maps/api/streetview?size=600x300&location=${lat},${lng}&key=${GOOGLE_API_KEY}`;
-      setStopPhotoUrl(streetViewUrl);
+      const lat = stop.latitude; // Stop latitude
+      const lng = stop.longitude; // Stop longitude
+      const streetViewUrl = `https://maps.googleapis.com/maps/api/streetview?size=600x300&location=${lat},${lng}&key=${GOOGLE_API_KEY}`; // URL for Google Street View
+      setStopPhotoUrl(streetViewUrl); // Set street view URL
 
+      // Set selected stop details
       setSelectedStop({
         name: stop.stop_name || 'Bus Stop',
         vicinity: `Lat: ${lat}, Lng: ${lng}`,
@@ -109,13 +113,15 @@ export default function Home() {
 
   return (
     <View style={styles.container}>
+      {/* Map displaying user location, routes, and bus positions */}
       <MapView
         style={styles.map}
-        showsUserLocation={true}
-        followsUserLocation={true}
-        initialRegion={mapRegion}
-        region={location ? mapRegion : undefined}
+        showsUserLocation={true} // Show user location
+        followsUserLocation={true} // Follow user's location
+        initialRegion={mapRegion} // Set initial region
+        region={location ? mapRegion : undefined} // Update region dynamically
       >
+        {/* Display routes and stops */}
         {selectedRoutes.map((routeItem) => (
           <React.Fragment key={routeItem.route.route_id}>
             {Object.entries(
@@ -134,11 +140,12 @@ export default function Home() {
                     latitude: parseFloat(latitude),
                     longitude: parseFloat(longitude),
                   }))}
-                strokeColor={`#${routeItem.route.route_color || 'FF0000'}`}
-                strokeWidth={3}
+                strokeColor={`#${routeItem.route.route_color || 'FF0000'}`} // Use route color or red as default
+                strokeWidth={3} // Line thickness
               />
             ))}
 
+            {/* Markers for stops */}
             {routeItem.stops.map((stop, index) => (
               <Marker
                 key={`stop-${routeItem.route.route_id}-${index}`}
@@ -146,7 +153,7 @@ export default function Home() {
                   latitude: parseFloat(stop.latitude),
                   longitude: parseFloat(stop.longitude),
                 }}
-                title={stop.stop_name || `Bus Stop`}
+                title={stop.stop_name || `Bus Stop`} // Default title if stop name is unavailable
                 onPress={() => handleMarkerPress(stop)}
               >
                 <View style={styles.stopMarker}>
@@ -154,7 +161,7 @@ export default function Home() {
                     style={[
                       styles.innerDot,
                       {
-                        backgroundColor: `#${routeItem.route.route_color || '000000'}`,
+                        backgroundColor: `#${routeItem.route.route_color || '000000'}`, // Use route color or black as default
                       },
                     ]}
                   />
@@ -164,82 +171,24 @@ export default function Home() {
           </React.Fragment>
         ))}
 
-        {filteredBusPositions.map((bus, index) => {
-          const route = selectedRoutes.find((routeItem) =>
-            routeItem.route.route_id === bus.route_id
-          );
-          const routeColor = route ? `#${route.route.route_color || '000000'}` : 'black';
-
-          return (
-            <Marker
-              key={`bus-${bus.vehicle_id}-${index}`}
-              coordinate={{
-                latitude: bus.latitude,
-                longitude: bus.longitude,
-              }}
-              anchor={{ x: 0.5, y: 0.65 }}
-              title={`Bus ${bus.vehicle_id}`}
-              description={`Route: ${bus.route_short_name}`}
-            >
-              <View style={styles.busContainer}>
-                <View
-                  style={[
-                    styles.busLabelWithArrow,
-                    { borderColor: routeColor },
-                  ]}
-                >
-                  <Text style={[styles.busLabelText]}>
-                    {bus.route_short_name}
-                  </Text>
-                  <View
-                    style={[
-                      styles.arrowDown,
-                      { borderTopColor: routeColor },
-                    ]}
-                  />
-                </View>
-                <Image
-                  source={BUS_ICON}
-                  style={[
-                    styles.busIcon,
-                    { transform: [{ rotate: `${bus.bearing + 180}deg` }] },
-                  ]}
-                />
-              </View>
-            </Marker>
-          );
-        })}
-
-
+        {/* Display bus markers */}
+        {filteredBusPositions.map((bus, index) => (
+          <BusMarker key={`bus-${bus.vehicle_id}-${index}`} bus={bus} />
+        ))}
       </MapView>
+
+      {/* Button to navigate to route selection */}
       <View style={styles.buttonContainer}>
         <Button title="Select Routes" onPress={() => router.push('/routes-list')} />
       </View>
 
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{selectedStop?.name}</Text>
-            <Text style={styles.modalSubtitle}>{selectedStop?.vicinity}</Text>
-            {stopPhotoUrl ? (
-              <Image source={{ uri: stopPhotoUrl }} style={styles.stopImage} />
-            ) : (
-              <Text>No street view available for this stop.</Text>
-            )}
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      {/* Modal to display stop information */}
+      <StopInfoModal
+        modalVisible={modalVisible}
+        stopPhotoUrl={stopPhotoUrl}
+        selectedStop={selectedStop}
+        setModalVisible={setModalVisible}
+      />
     </View>
   );
 }
@@ -260,48 +209,6 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 5,
   },
-  busContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  busLabelWithArrow: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'white',
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    height: 46,
-    width: 46,
-    borderRadius: 23,
-    borderWidth: 4,
-    borderColor: 'black',
-    marginBottom: -25,
-  },
-
-  busLabelText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: 'black',
-  },
-
-  arrowDown: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 8,
-    borderRightWidth: 8,
-    borderTopWidth: 8,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: 'black',
-  },
-
-  busIcon: {
-    width: 60,
-    height: 60,
-    resizeMode: 'contain',
-  },
-
   stopMarker: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -316,57 +223,6 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-  },
-  modalContent: {
-    width: '90%',
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
-    textAlign: 'center',
-  },
-  modalSubtitle: {
-    fontSize: 16,
-    color: '#555',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  stopImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 10,
-    marginBottom: 15,
-  },
-  closeButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  closeButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
   },
 });
 
