@@ -2,13 +2,13 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 
 interface StopInfoModalProps {
-  modalVisible: boolean;
-  stopPhotoUrl: string | null;
+  modalVisible: boolean; // Whether the modal is visible
+  stopPhotoUrl: string | null; // URL for the stop's photo (optional)
   selectedStop: {
-    name: string;
-    vicinity: string;
-  } | null;
-  setModalVisible: React.Dispatch<React.SetStateAction<boolean>>;
+    name: string; // Name of the selected bus stop
+    vicinity: string; // Additional details about the stop's location
+  } | null; // The selected stop object or null if no stop is selected
+  setModalVisible: React.Dispatch<React.SetStateAction<boolean>>; // Function to toggle the modal's visibility
 }
 
 const StopInfoModal: React.FC<StopInfoModalProps> = ({
@@ -19,20 +19,24 @@ const StopInfoModal: React.FC<StopInfoModalProps> = ({
 }) => {
   return (
     <Modal
-      animationType="fade"
-      transparent={true}
-      visible={modalVisible}
-      onRequestClose={() => setModalVisible(false)}
+      animationType="fade" // Fade animation for modal appearance/disappearance
+      transparent={true} // Allows background to show with transparency
+      visible={modalVisible} // Controls whether the modal is visible
+      onRequestClose={() => setModalVisible(false)} // Closes modal when the user requests it
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
+          {/* Display the name of the selected stop, or a default text */}
           <Text style={styles.modalTitle}>{selectedStop?.name || 'Bus Stop'}</Text>
+          {/* Display the vicinity information or a fallback message */}
           <Text style={styles.modalSubtitle}>{selectedStop?.vicinity || 'No details available'}</Text>
+          {/* Conditionally display the photo of the stop, if available */}
           {stopPhotoUrl ? (
             <Image source={{ uri: stopPhotoUrl }} style={styles.stopImage} />
           ) : (
             <Text>No street view available for this stop.</Text>
           )}
+          {/* Close button to dismiss the modal */}
           <TouchableOpacity
             style={styles.closeButton}
             onPress={() => setModalVisible(false)}
