@@ -4,8 +4,9 @@ import MapView, { Region, Polyline, Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useRoutes } from './../RoutesContext';
+import BUS_ICON from './../assets/images/bus.png';
 
-const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY; // Replace with your Google API Key
+const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 const apiUrl = process.env.EXPO_PUBLIC_WEB_SOCKET_URL;
 
 export default function Home() {
@@ -163,28 +164,53 @@ export default function Home() {
           </React.Fragment>
         ))}
 
-        {filteredBusPositions.map((bus, index) => (
-          <Marker
-            key={`bus-${bus.vehicle_id}-${index}`}
-            coordinate={{
-              latitude: bus.latitude,
-              longitude: bus.longitude,
-            }}
-            title={`Bus ${bus.vehicle_id}`}
-            description={`Route: ${bus.route_short_name}`}
-          >
-            <View
-              style={[
-                styles.busMarker,
-                {
-                  backgroundColor: `#${bus.route_color || '000000'}`,
-                },
-              ]}
+        {filteredBusPositions.map((bus, index) => {
+          const route = selectedRoutes.find((routeItem) =>
+            routeItem.route.route_id === bus.route_id
+          );
+          const routeColor = route ? `#${route.route.route_color || '000000'}` : 'black';
+
+          return (
+            <Marker
+              key={`bus-${bus.vehicle_id}-${index}`}
+              coordinate={{
+                latitude: bus.latitude,
+                longitude: bus.longitude,
+              }}
+              anchor={{ x: 0.5, y: 0.65 }}
+              title={`Bus ${bus.vehicle_id}`}
+              description={`Route: ${bus.route_short_name}`}
             >
-              <Text style={styles.busText}>{bus.route_short_name}</Text>
-            </View>
-          </Marker>
-        ))}
+              <View style={styles.busContainer}>
+                <View
+                  style={[
+                    styles.busLabelWithArrow,
+                    { borderColor: routeColor },
+                  ]}
+                >
+                  <Text style={[styles.busLabelText]}>
+                    {bus.route_short_name}
+                  </Text>
+                  <View
+                    style={[
+                      styles.arrowDown,
+                      { borderTopColor: routeColor },
+                    ]}
+                  />
+                </View>
+                <Image
+                  source={BUS_ICON}
+                  style={[
+                    styles.busIcon,
+                    { transform: [{ rotate: `${bus.bearing + 180}deg` }] },
+                  ]}
+                />
+              </View>
+            </Marker>
+          );
+        })}
+
+
       </MapView>
       <View style={styles.buttonContainer}>
         <Button title="Select Routes" onPress={() => router.push('/routes-list')} />
@@ -234,20 +260,49 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 5,
   },
-  busMarker: {
+  busContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 40,
-    height: 30,
-    borderRadius: 5,
-    borderWidth: 2,
-    borderColor: 'white',
   },
-  busText: {
-    color: 'white',
-    fontWeight: 'bold',
+
+  busLabelWithArrow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    height: 48,
+    width: 48,
+    borderRadius: 24,
+    borderWidth: 4,
+    borderColor: 'black',
+    marginBottom: -25,
+    zIndex: 2,
+  },
+
+  busLabelText: {
     fontSize: 14,
+    fontWeight: 'bold',
+    color: 'black',
   },
+
+  arrowDown: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderTopWidth: 8,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: 'black',
+  },
+
+  busIcon: {
+    width: 60,
+    height: 60,
+    resizeMode: 'contain',
+  },
+
   stopMarker: {
     alignItems: 'center',
     justifyContent: 'center',
